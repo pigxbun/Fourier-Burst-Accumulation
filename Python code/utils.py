@@ -38,17 +38,27 @@ def register_burst(burst, copy=False):
 
     for i in range(1, burst.shape[0]):
 
-        # Match features.
-        # matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
-        matcher = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
-        matches = list(matcher.match(descriptors[0], descriptors[i], None))
+#         # Match features.
+#         # matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
+#         matcher = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
+#         matches = list(matcher.match(descriptors[0], descriptors[i], None))
 
-        # Sort matches by score
-        matches.sort(key=lambda x: x.distance, reverse=False)
+#         # Sort matches by score
+#         matches.sort(key=lambda x: x.distance, reverse=False)
 
-        # Remove not so good matches
-        numGoodMatches = int(len(matches) * GOOD_MATCH_PERCENT)
-        matches = matches[:numGoodMatches]
+#         # Remove not so good matches
+#         numGoodMatches = int(len(matches) * GOOD_MATCH_PERCENT)
+#         matches = matches[:numGoodMatches]
+        
+        # BFMatcher with default params
+        bf = cv2.BFMatcher()
+        matches = bf.knnMatch(descriptors[0], descriptors[i],k=2)
+        # Apply ratio test
+        good = []
+        for m,n in matches:
+            if m.distance < 0.75*n.distance:
+                good.append(m)
+        matches = good
 
         # Extract location of good matches
         points1 = np.zeros((len(matches), 2), dtype=np.float32)
