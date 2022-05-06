@@ -2,7 +2,7 @@
 Implemetation of "Removing Camera Shake via Weighted Fourier Burst Accumulation".
 
 # How to use
-cd 'Python code'
+cd 'Python code'<br>
 python FBA.py [image path]
 
 # Useful links
