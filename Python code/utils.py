@@ -7,16 +7,20 @@ import math
 
 
 def read_burst(burst_path, file_extension):
-    # read a burst of images with extension <file_extension>
-    # return a burst of images
+    """
+    Read a burst of images with extension <file_extension>
+    return a burst of images
+    """
     image_dirs = glob.glob(os.path.join(burst_path, file_extension))
     image_dirs = sorted(image_dirs)
     return np.array([cv2.imread(name) for name in image_dirs], dtype=np.uint8)
 
 
 def register_burst(burst, copy=False):
-    # allign a burst of images
-    # source: https://learnopencv.com/image-alignment-feature-based-using-opencv-c-python/
+    """
+    allign a burst of images
+    source: https://learnopencv.com/image-alignment-feature-based-using-opencv-c-python/
+    """
     MAX_FEATURES = 500
     GOOD_MATCH_PERCENT = 0.15
 
@@ -96,3 +100,59 @@ def get_gau_ker(ksize, sig, shape=None):
     cmid = shape[1]//2
     res[rmid-l:rmid+l+1, cmid-l:cmid+l+1] = gauss
     return res, np.abs(np.fft.fft2(res))
+
+
+def gaussian_sharpen(Input, radius, c):
+    # Input : image
+    # radius : radius of H
+    # c : images sharpening constant
+    img = Input.copy()
+    centx = int(Input.shape[0]/2)
+    centy = int(Input.shape[1]/2)
+    print("max max radius: "+str(math.sqrt(centx**2+centy**2)) +
+          " min max radius: "+str(min(centx, centy)))
+    img = np.moveaxis(img, 2, 0)  # (R, C, channel) -> (channel, R, C)
+    img_result = np.zeros(img.shape)
+#     print(img.shape)
+    for channel in range(img.shape[0]):
+        img_fft = np.fft.fft2(img[channel])
+        img_fft = np.fft.fftshift(img_fft)
+        for i in range(img_fft.shape[0]):
+            for j in range(img_fft.shape[1]):
+                cur_rad = (i-centx)**2+(j-centy)**2
+                scale = math.exp(-cur_rad / (2*(radius**2)))
+                img_fft[i, j] = scale * img_fft[i, j]
+        img_result[channel] = np.real(np.fft.ifft2(np.fft.ifftshift(img_fft)))
+    img_result = np.moveaxis(img_result, 0, 2)
+#     print(img_result.shape)
+    img_result = np.where(img_result < 0, 0, img_result)
+    img_result = np.where(img_result > 255, 255, img_result).astype(np.uint8)
+    # image sharpening
+    img_result = (c/(2*c-1))*Input - ((1-c)/(2*c-1))*img_result
+    return img_result.astype(np.uint8)
+
+
+def unsharp_masking(img, c=3/5):
+    # img_median = cv2.medianBlur(img, 1)
+    # img_lap = cv2.Laplacian(img, cv2.CV_64F)
+    # img_sharp = img_median - 0.7*img_lap
+    blur_img = cv2.GaussianBlur(img, (5, 5), 0)
+    img_result = c/(2*c-1)*img - (1-c)/(2*c-1)*blur_img
+    img_result = np.where(img_result < 0, 0, img_result)
+    img_result = np.where(img_result > 255, 255, img_result).astype(np.uint8)
+    return img_result
+
+
+def change_reference(burst, copy=False):
+    """
+    Use the clearest image as the reference image for burst registration
+    Put the clearest image first
+    burst : a burst of images
+    """
+    if copy:
+        burst = np.copy(burst)
+    a = np.fft.fft2(np.moveaxis(burst, 3, 1))
+    a = np.sum(np.abs(a), axis=(1, 2, 3))
+    a = np.argmax(a)
+    burst[[0, a], :, :, :] = burst[[a, 0], :, :, :]
+    return burst
