@@ -12,7 +12,7 @@ def read_burst(burst_path, file_extension):
     return a burst of images
     """
     image_dirs = glob.glob(os.path.join(burst_path, file_extension))
-    image_dirs = sorted(image_dirs)
+    image_dirs = sorted([dir for dir in image_dirs if dir.find('out') == -1])
     return np.array([cv2.imread(name) for name in image_dirs], dtype=np.uint8)
 
 
